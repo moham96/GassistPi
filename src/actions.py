@@ -13,12 +13,11 @@ from gtts import gTTS
 import requests
 import os
 import os.path
-#test if we are running in raspberrypi
 try:
     import RPi.GPIO as GPIO
 except Exception as e:
-    if str(e) == 'This module can only be run on a Raspberry Pi!':
-        GPIO=None
+    if str(e) == 'No module named 'RPi.GPIO'':
+        GPIO = None
 import time
 import re
 import subprocess
@@ -28,7 +27,7 @@ import json
 import urllib.request
 import pafy
 import pychromecast
-import pygame
+
 #API Key for YouTube and KS Search Engine
 google_cloud_api_key='ENTER-YOUR-GOOGLE-CLOUD-API-KEY-HERE'
 # Sonoff-Tasmota Declarations
