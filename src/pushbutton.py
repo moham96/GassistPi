@@ -25,8 +25,8 @@ import uuid
 try:
     import RPi.GPIO as GPIO
 except Exception as e:
-    if str(e) == 'This module can only be run on a Raspberry Pi!':
-        GPIO=None
+    if str(e) == 'No module named \'RPi\'':
+        GPIO = None
 import subprocess
 import grpc
 import time

@@ -7,16 +7,14 @@ from kodijson import Kodi, PLAYER_VIDEO
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from gmusicapi import Mobileclient
-from googletrans import Translator
 from pushbullet import Pushbullet
-from gtts import gTTS
 import requests
 import os
 import os.path
 try:
     import RPi.GPIO as GPIO
 except Exception as e:
-    if str(e) == 'No module named 'RPi.GPIO'':
+    if str(e) == 'No module named \'RPi\'':
         GPIO = None
 import time
 import re
@@ -27,7 +25,7 @@ import json
 import urllib.request
 import pafy
 import pychromecast
-
+import utils
 #API Key for YouTube and KS Search Engine
 google_cloud_api_key='ENTER-YOUR-GOOGLE-CLOUD-API-KEY-HERE'
 # Sonoff-Tasmota Declarations
@@ -42,9 +40,11 @@ song_ids=[]
 track_ids=[]
 api = Mobileclient()
 #If you are using two-step authentication, use app specific password. For guidelines, go through README
-logged_in = api.login('ENTER_YOUR_EMAIL_HERE', 'ENETER_YOUR_PASSWORD', Mobileclient.FROM_MAC_ADDRESS)
+#logged_in = api.login('ENTER_YOUR_EMAIL_HERE', 'ENETER_YOUR_PASSWORD', Mobileclient.FROM_MAC_ADDRESS)
+logged_in = api.login('mohammad.rasim96@gmail.com', 'cjkfmqivxhdlarei', Mobileclient.FROM_MAC_ADDRESS)
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
 
+misc=utils.misc()
 #YouTube API Constants
 DEVELOPER_KEY = google_cloud_api_key
 YOUTUBE_API_SERVICE_NAME = 'youtube'
@@ -83,10 +83,13 @@ if GPIO != None:
     led=GPIO.PWM(25,1)
     led.start(0)
 
-#Number of station names and station links should be the same
-stnname=('Radio 1', 'Radio 2', 'Radio 3', 'Radio 5')#Add more stations if you want
-stnlink=('http://www.radiofeeds.co.uk/bbcradio2.pls', 'http://www.radiofeeds.co.uk/bbc6music.pls', 'http://c5icy.prod.playlists.ihrhls.com/1469_icy', 'http://playerservices.streamtheworld.com/api/livestream-redirect/ARNCITY.mp3')
-
+Radio_stations=[
+    {'name':'bbc 2','url':'http://www.radiofeeds.co.uk/bbcradio2.pls'},
+    {'name':'bbc 6 music','url':'http://www.radiofeeds.co.uk/bbc6music.pls'},
+    {'name':'Radio 3','url':'http://c5icy.prod.playlists.ihrhls.com/1469_icy'},
+    {'name':'Radio 4','url':'http://playerservices.streamtheworld.com/api/livestream-redirect/ARNCITY.mp3'}
+    ]
+    
 #IP Address of ESP
 ip='xxxxxxxxxxxx'
 
@@ -95,7 +98,6 @@ devname=('Device 1', 'Device 2', 'Device 3')
 devid=('/Device1', '/Device2', '/Device3')
 
 playshell = None
-
 #Initialize colour list
 clrlist=[]
 clrlistfullname=[]
@@ -129,23 +131,6 @@ topnews = "http://feeds.bbci.co.uk/news/rss.xml"
 sportsnews = "http://feeds.feedburner.com/ndtvsports-latest"
 quote = "http://feeds.feedburner.com/brainyquote/QUOTEBR"
 
-##Speech and translator declarations
-ttsfilename="/tmp/say.mp3"
-translator = Translator()
-language='en'
-## Other language options:
-##'af'    : 'Afrikaans'         'sq' : 'Albanian'           'ar' : 'Arabic'      'hy'    : 'Armenian'
-##'bn'    : 'Bengali'           'ca' : 'Catalan'            'zh' : 'Chinese'     'zh-cn' : 'Chinese (China)'
-##'zh-tw' : 'Chinese (Taiwan)'  'hr' : 'Croatian'           'cs' : 'Czech'       'da'    : 'Danish'
-##'nl'    : 'Dutch'             'en' : 'English'            'eo' : 'Esperanto'   'fi'    : 'Finnish'
-##'fr'    : 'French'            'de' : 'German'             'el' : 'Greek'       'hi'    : 'Hindi'
-##'hu'    : 'Hungarian'         'is' : 'Icelandic'          'id' : 'Indonesian'  'it'    : 'Italian'
-##'ja'    : 'Japanese'          'km' : 'Khmer (Cambodian)'  'ko' : 'Korean'      'la'    : 'Latin'
-##'lv'    : 'Latvian'           'mk' : 'Macedonian'         'no' : 'Norwegian'   'pl'    : 'Polish'
-##'pt'    : 'Portuguese'        'ro' : 'Romanian'           'ru' : 'Russian'     'sr'    : 'Serbian'
-##'si'    : 'Sinhala'           'sk' : 'Slovak'             'es' : 'Spanish'     'sw'    : 'Swahili'
-##'sv'    : 'Swedish'           'ta' : 'Tamil'              'th' : 'Thai'        'tr'    : 'Turkish'
-##'uk'    : 'Ukrainian'         'vi' : 'Vietnamese'         'cy' : 'Welsh'
 
 
 #Function for google KS custom search engine
@@ -172,17 +157,7 @@ def mpvvolmgr():
 
 
 
-#Text to speech converter with translation
-def say(words):
-    words= translator.translate(words, dest=language)
-    words=words.text
-    words=words.replace("Text, ",'',1)
-    words=words.strip()
-    print(words)
-    tts = gTTS(text=words, lang=language)
-    tts.save(ttsfilename)
-    play_audio_file(ttsfilename)
-    os.remove(ttsfilename)
+
 
 
 #Function to get HEX and RGB values for requested colour
@@ -206,7 +181,7 @@ def getcolours(phrase):
                break
         return red,blue,green,hexcode,cname
     except UnboundLocalError:
-        say("Sorry unable to find a matching colour")
+        misc.say("Sorry unable to find a matching colour")
 
 
 #Function to convert FBG to XY for Hue Lights
@@ -222,18 +197,17 @@ def convert_rgb_xy(red,green,blue):
         y = Y / (X + Y + Z)
         return x,y
     except UnboundLocalError:
-        say("No RGB values given")
+        misc.say("No RGB values given")
 
 
 #Radio Station Streaming
 def radio(phrase):
-    for num, name in enumerate(stnname):
-        if name.lower() in phrase:
-            startingvol=mpvvolmgr()
-            station=stnlink[num]
-            print (station)
-            say("Tuning into " + name)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+station+' &')
+    for item in Radio_stations:
+        if item['name'].lower() in phrase:
+            print("Tuning into " + item['name'])
+            misc.say("Tuning into " + item['name'])
+            misc.vlc_play_item(item['url'])
+            return
 
 #ESP6266 Devcies control
 def ESP(phrase):
@@ -242,10 +216,10 @@ def ESP(phrase):
             dev=devid[num]
             if 'on' in phrase:
                 ctrl='=ON'
-                say("Turning On " + name)
+                misc.say("Turning On " + name)
             elif 'off' in phrase:
                 ctrl='=OFF'
-                say("Turning Off " + name)
+                misc.say("Turning Off " + name)
             rq = requests.head("https://"+ip + dev + ctrl)
 
 
@@ -253,15 +227,11 @@ def ESP(phrase):
 def SetAngle(angle):
     duty = angle/18 + 2
     GPIO.output(27, True)
-    say("Moving motor by " + str(angle) + " degrees")
+    misc.say("Moving motor by " + str(angle) + " degrees")
     pwm.ChangeDutyCycle(duty)
     time.sleep(1)
     pwm.ChangeDutyCycle(0)
     GPIO.output(27, False)
-
-
-def stop():
-    pkill = subprocess.Popen(["/usr/bin/pkill","mpv"],stdin=subprocess.PIPE)
 
 #Parcel Tracking
 def track():
@@ -270,19 +240,19 @@ def track():
     print("Total Number of Parcels: " + str(numtrack))
     if numtrack==0:
         parcelnotify=("You have no parcel to track")
-        say(parcelnotify)
+        misc.say(parcelnotify)
     elif numtrack==1:
         parcelnotify=("You have one parcel to track")
-        say(parcelnotify)
+        misc.say(parcelnotify)
     elif numtrack>1:
         parcelnotify=( "You have " + str(numtrack) + " parcels to track")
-        say(parcelnotify)
+        misc.say(parcelnotify)
     for x in range(0,numtrack):
         numcheck=len(text[ 'trackings'][x]['checkpoints'])
         description = text['trackings'][x]['checkpoints'][numcheck-1]['message']
         parcelid=text['trackings'][x]['tracking_number']
         trackinfo= ("Parcel Number " + str(x+1)+ " with tracking id " + parcelid + " is "+ description)
-        say(trackinfo)
+        misc.say(trackinfo)
         #time.sleep(10)
 
 #RSS Feed Reader
@@ -304,16 +274,16 @@ def feed(phrase):
     if feedlength<numfeeds:
         numfeeds=feedlength
     title=feed['feed']['title']
-    say(title)
+    misc.say(title)
     #To stop the feed, press and hold stop button
     while GPIO.input(23):
         for x in range(0,numfeeds):
             content=feed['entries'][x]['title']
             print(content)
-            say(content)
+            misc.say(content)
             summary=feed['entries'][x]['summary']
             print(summary)
-            say(summary)
+            misc.say(summary)
             if not GPIO.input(23):
               break
         if x == numfeeds-1:
@@ -409,10 +379,10 @@ def kodi_youtube(query):
 
  #Instead of sending it to Kodi, if you want to play locally, uncomment the following two lines and comment the next two lines
  #os.system("mpv "+YouTubeURL)
- #say("Playing YouTube video")
+ #misc.say("Playing YouTube video")
 
     kodi.Player.open(item={"file":"plugin://plugin.video.youtube/?action=play_video&videoid=" + urlid})
-    say("Playing YouTube video on Kodi")
+    misc.say("Playing YouTube video on Kodi")
 
 
 #Function to fetch tracks from an album
@@ -455,11 +425,11 @@ def kodialbum(query):
         print(albumcontents)
         playinginfo=("Playing "+str(len(albumcontents))+" tracks from album "+query)
         print(playinginfo)
-        say(playinginfo)
+        misc.say(playinginfo)
         kodi.Player.open(item={"playlistid": 0},options={"repeat": "all"})
     else:
         print("Sorry, I could not find tracks from that album")
-        say("Sorry, I could not find tracks from that album")
+        misc.say("Sorry, I could not find tracks from that album")
 
 
 #Function to retrieve the name of requested album from the user command
@@ -480,15 +450,15 @@ def albumretrieve(query):
         print(reqalbum)
         feedback=("Album, "+reqalbum+" found")
         print(feedback)
-        say(feedback)
+        misc.say(feedback)
         kodialbum(reqalbum)#Calling the function to fetch tracks from the album
     else:
         print('Sorry, I could not find that album. But, here is a list of other vailable albums')
-        say("Sorry, I could not find that album. But, here is a list of other vailable albums")
+        misc.say("Sorry, I could not find that album. But, here is a list of other vailable albums")
         for i in range(0,numalbums):
             Albumname=str(Albums["result"]["albums"][i]["label"])
             print(Albumname)
-            say(Albumname)
+            misc.say(Albumname)
 
 
 #Function to fetch songs rendered by an artist
@@ -534,11 +504,11 @@ def kodiartist(query):
         else:
             playinginfo=("Playing "+str(len(artistcontents))+" tracks rendered by "+query)
         print(playinginfo)
-        say(playinginfo)
+        misc.say(playinginfo)
         kodi.Player.open(item={"playlistid": 0},options={"repeat": "all"})
     else:
         print("Sorry, I could not find tracks rendered by that artist")
-        say("Sorry, I could not find tracks rendered by that artist")
+        misc.say("Sorry, I could not find tracks rendered by that artist")
 
 
 #Function to play requested single track or video/movie on kodi
@@ -551,7 +521,7 @@ def singleplaykodi(query):
     track = track.replace('play','',1)
     track = track.replace('on kodi','',1)
     track=track.strip()
-    say("Searching for your file")
+    misc.say("Searching for your file")
     if 'song'.lower() in str(track).lower() or 'track'.lower() in str(track).lower() or 'audio'.lower() in str(track).lower():
         if 'song'.lower() in str(track).lower():
             track = track.replace('song','',1)
@@ -574,7 +544,7 @@ def singleplaykodi(query):
                        print('Matching file found')
                        path=files["result"]["files"][i]["file"]
                        print(path)
-                       say("Playing "+name+" song")
+                       misc.say("Playing "+name+" song")
                        kodi.Player.open(item={"file": path})
             elif (musicfiles["result"]["files"][a]["filetype"])=="file":
                 name=musicfiles["result"]["files"][a]["label"]
@@ -582,7 +552,7 @@ def singleplaykodi(query):
                     print('Matching file found')
                     path=musicfiles["result"]["files"][a]["file"]
                     print(path)
-                    say("Playing "+name+" song")
+                    misc.say("Playing "+name+" song")
                     kodi.Player.open(item={"file": path})
 
     elif 'movie'.lower() in str(track).lower() or 'video'.lower() in str(track).lower():
@@ -604,7 +574,7 @@ def singleplaykodi(query):
                        print('Matching file found')
                        path=files["result"]["files"][i]["file"]
                        print(path)
-                       say("Playing "+name+" movie")
+                       misc.say("Playing "+name+" movie")
                        kodi.Player.open(item={"file": path})
             elif (videofiles["result"]["files"][a]["filetype"])=="file":
                 name=videofiles["result"]["files"][a]["label"]
@@ -612,10 +582,10 @@ def singleplaykodi(query):
                     print('Matching file found')
                     path=videofiles["result"]["files"][a]["file"]
                     print(path)
-                    say("Playing "+name+" movie")
+                    misc.say("Playing "+name+" movie")
                     kodi.Player.open(item={"file": path})
     else:
-        say("Sorry, I am unable to help you with that now")
+        misc.say("Sorry, I am unable to help you with that now")
 
 
 #Function to check what is currently playing
@@ -623,7 +593,7 @@ def whatisplaying():
     players=kodi.Player.GetActivePlayers()
     print(players)
     if players["result"]==[]:
-        say("Stop kidding, will you?")
+        misc.say("Stop kidding, will you?")
     else:
         playid=players["result"][0]["playerid"]
         typeplaying=players["result"][0]["type"]
@@ -632,7 +602,7 @@ def whatisplaying():
             print(currentvid["result"]["item"]["title"])
             playingcontent=("Movie titled, "+(currentvid["result"]["item"]["title"])+", is currently playing")
             print(playingcontent)
-            say(playingcontent)
+            misc.say(playingcontent)
         elif typeplaying=="audio" and playid==0:
             currentaud=kodi.Player.GetItem({ "properties": ["title", "album", "artist", "duration", "thumbnail", "file", "fanart", "streamdetails"], "playerid": 0 })
             print(currentaud["result"]["item"]["title"])
@@ -640,14 +610,14 @@ def whatisplaying():
             if (currentaud["result"]["item"]["album"]) !=[] and (currentaud["result"]["item"]["album"]) !=str("") and (currentaud["result"]["item"]["artist"])!=[] and (currentaud["result"]["item"]["artist"])!=str(""):
                 playingcontent=("Song titled, '"+(currentaud["result"]["item"]["title"])+"', from the album "+(currentaud["result"]["item"]["album"])+", by "+str((currentaud["result"]["item"]["artist"][0]))+", is currently playing")
                 print(playingcontent)
-                say(playingcontent)
+                misc.say(playingcontent)
             else:
                 playingcontent=("Song titled, "+(currentaud["result"]["item"]["title"])+", is currently playing")
                 print(playingcontent)
-                say(playingcontent)
+                misc.say(playingcontent)
         else:
             print("Is anything even playing")
-            say("Is anything even playing ?")
+            misc.say("Is anything even playing ?")
 
 
 #Function to shuffle Kodi tracks
@@ -673,7 +643,7 @@ def shufflekodi():
     players=kodi.Player.GetActivePlayers()
     playid=players["result"][0]["playerid"]
     kodi.Player.SetShuffle({"playerid":playid,"shuffle":True})
-    say("Shuffling your music")
+    misc.say("Shuffling your music")
 
 
 #Functions for actions on KODI
@@ -692,7 +662,7 @@ def kodiactions(phrase):
         else:
             track=track.strip()
         print(track)
-        say("Fetching YouTube links for, "+track)
+        misc.say("Fetching YouTube links for, "+track)
         kodi_youtube(track)
     elif 'what'.lower() in str(phrase).lower() and 'playing'.lower() in str(phrase).lower():
         whatisplaying()
@@ -706,7 +676,7 @@ def kodiactions(phrase):
         artist = artist.replace('artist','',1)
         artist = artist.replace('on kodi','',1)
         artist = artist.strip()
-        say("Searching for renditions")
+        misc.say("Searching for renditions")
         kodiartist(artist)
     elif 'play'.lower() in str(phrase).lower() and ('audio'.lower() in str(phrase).lower() or 'movie'.lower() in str(phrase).lower() or 'song'.lower() in str(phrase).lower() or 'video'.lower() in str(phrase).lower() or 'track'.lower() in str(phrase).lower()):
         singleplaykodi(phrase)
@@ -763,14 +733,14 @@ def kodiactions(phrase):
         status=mutevolstatus()
         if status[0]==False:
             kodi.Application.SetMute({"mute": True})
-            say("Muting Kodi")
+            misc.say("Muting Kodi")
         elif status[0]==True:
             kodi.Application.SetMute({"mute": False})
-            say("Disabling mute on Kodi")
+            misc.say("Disabling mute on Kodi")
     elif 'get'.lower() in str(phrase).lower() and 'volume'.lower() in str(phrase).lower():
         status=mutevolstatus()
         vollevel=status[1]
-        say("Currently, Kodi's volume is set at: "+str(vollevel))
+        misc.say("Currently, Kodi's volume is set at: "+str(vollevel))
     elif 'go to'.lower() in str(phrase).lower() or 'open'.lower() in str(phrase).lower():
         for num, name in enumerate(windowcmd):
             if name.lower() in str(phrase).lower():
@@ -779,21 +749,21 @@ def kodiactions(phrase):
     elif 'pause'.lower() in str(phrase).lower():
         players=kodi.Player.GetActivePlayers()
         if players["result"]==[]:
-            say("There is nothing playing")
+            misc.say("There is nothing playing")
         else:
             playid=players["result"][0]["playerid"]
             kodi.Player.PlayPause({"playerid": playid,"play": False})
     elif 'resume'.lower() in str(phrase).lower():
         players=kodi.Player.GetActivePlayers()
         if players["result"]==[]:
-            say("There is nothing playing")
+            misc.say("There is nothing playing")
         else:
             playid=players["result"][0]["playerid"]
             kodi.Player.PlayPause({"playerid": playid,"play": True})
     elif 'stop'.lower() in str(phrase).lower():
         players=kodi.Player.GetActivePlayers()
         if players["result"]==[]:
-            say("There is nothing playing")
+            misc.say("There is nothing playing")
         else:
             playid=players["result"][0]["playerid"]
             kodi.Player.Stop({"playerid": playid})
@@ -929,7 +899,7 @@ def refreshlists():
         json.dump(songs_list, output_file)
     with open(os.path.expanduser('~/playlist.json'), 'w') as output_file:
         json.dump(playlist_list, output_file)
-    say("Music list synchronised")
+    misc.say("Music list synchronised")
 
 def play_playlist(playlistnum):
 
@@ -951,14 +921,14 @@ def play_playlist(playlistnum):
             json.dump(playerinfo, output_file)
 
     tracks,numtracks=loadplaylist(playlistnum)
-    startingvol=mpvvolmgr()
+    #startingvol=mpvvolmgr()
 
     if not tracks==[]:
         if currenttrackid<numtracks:
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='on':
             currenttrackid=0
             nexttrackid=1
@@ -967,13 +937,13 @@ def play_playlist(playlistnum):
             with open(os.path.expanduser('~/.gmusicplaylistplayer.json'), 'w') as output_file:
                 json.dump(playerinfo,output_file)
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
             print("Error")
     else:
-        say("No matching results found")
+        misc.say("No matching results found")
 
 
 def play_songs():
@@ -996,14 +966,14 @@ def play_songs():
             json.dump(playerinfo, output_file)
 
     tracks,numtracks=loadsonglist()
-    startingvol=mpvvolmgr()
+    #startingvol=mpvvolmgr()
 
     if not tracks==[]:
         if currenttrackid<numtracks:
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+         #   os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='on':
             currenttrackid=0
             nexttrackid=1
@@ -1012,13 +982,14 @@ def play_songs():
             with open(os.path.expanduser('~/.gmusicsongsplayer.json'), 'w') as output_file:
                 json.dump(playerinfo,output_file)
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
             print("Error")
     else:
-        say("No matching results found")
+        misc.say("No matching results found")
 
 
 def play_album(albumname):
@@ -1040,14 +1011,15 @@ def play_album(albumname):
             json.dump(playerinfo, output_file)
 
     tracks,numtracks=loadalbum(albumname)
-    startingvol=mpvvolmgr()
+    #startingvol=mpvvolmgr()
 
     if not tracks==[]:
         if currenttrackid<numtracks:
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
+            
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='on':
             currenttrackid=0
             nexttrackid=1
@@ -1056,13 +1028,14 @@ def play_album(albumname):
             with open(os.path.expanduser('~/.gmusicalbumplayer.json'), 'w') as output_file:
                 json.dump(playerinfo,output_file)
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
+            
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
             print("Error")
     else:
-        say("No matching results found")
+        misc.say("No matching results found")
 
 
 
@@ -1085,12 +1058,13 @@ def play_artist(artistname):
             json.dump(playerinfo, output_file)
 
     tracks,numtracks=loadartist(artistname)
-    startingvol=mpvvolmgr()
+    #startingvol=mpvvolmgr()
+
 
     if not tracks==[]:
         if currenttrackid<numtracks:
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
+            
             print(streamurl)
             os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
         elif currenttrackid>=numtracks and loopstatus=='on':
@@ -1101,32 +1075,34 @@ def play_artist(artistname):
             with open(os.path.expanduser('~/.gmusicartistplayer.json'), 'w') as output_file:
                 json.dump(playerinfo,output_file)
             streamurl=api.get_stream_url(tracks[currenttrackid])
-            streamurl=("'"+streamurl+"'")
+            
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
             print("Error")
     else:
-        say("No matching results found")
+        misc.say("No matching results found")
 
 def gmusicselect(phrase):
-    os.system('echo "from actions import play_playlist\nfrom actions import play_songs\nfrom actions import play_album\nfrom actions import play_artist\n\n" >> /home/pi/GassistPi/src/trackchange.py')
+    os.system('echo "from actions import play_playlist\nfrom actions import play_songs\nfrom actions import play_album\nfrom actions import play_artist\n\n" >> {}/src/trackchange.py'.format(ROOT_PATH))
     if 'all the songs'.lower() in phrase:
-        os.system('echo "play_songs()\n" >> /home/pi/GassistPi/src/trackchange.py')
-        say("Playing all your songs")
+        print("Playing all your songs")
+        os.system('echo "play_songs()\n" >> {}/src/trackchange.py'.format(ROOT_PATH))
+        misc.say("Playing all your songs")
         play_songs()
 
     if 'playlist'.lower() in phrase:
         if 'first'.lower() in phrase or 'one'.lower() in phrase  or '1'.lower() in phrase:
-            os.system('echo "play_playlist(0)\n" >> /home/pi/GassistPi/src/trackchange.py')
-            say("Playing songs from your playlist")
+            os.system('echo "play_playlist(0)\n" >> {}/src/trackchange.py'.format(ROOT_PATH))
+            misc.say("Playing songs from your playlist")
             play_playlist(0)
         else:
-            say("Sorry I am unable to help")
+            misc.say("Sorry I am unable to help")
 
     if 'album'.lower() in phrase:
-        if os.path.isfile("/home/pi/.gmusicalbumplayer.json"):
-            os.system("rm /home/pi/.gmusicalbumplayer.json")
+        if os.path.isfile(os.path.expanduser("~/.gmusicalbumplayer.json")):
+            os.system("rm {}".format(os.path.expanduser("~/.gmusicalbumplayer.json")))
 
         req=phrase
         idx=(req).find('album')
@@ -1142,15 +1118,15 @@ def gmusicselect(phrase):
         album=album.strip()
         print(album)
         albumstr=('"'+album+'"')
-        f = open('/home/pi/GassistPi/src/trackchange.py', 'a+')
+        f = open(os.path.expanduser('~/GassistPi/src/trackchange.py'), 'a+')
         f.write('play_album('+albumstr+')')
         f.close()
-        say("Looking for songs from the album")
+        misc.say("Looking for songs from the album")
         play_album(album)
 
     if 'artist'.lower() in phrase:
-        if os.path.isfile("/home/pi/.gmusicartistplayer.json"):
-            os.system("rm /home/pi/.gmusicartistplayer.json")
+        if os.path.isfile(os.path.expanduser("~/.gmusicartistplayer.json")):
+            os.system("rm {}".format("~/.gmusicartistplayer.json"))
 
         req=phrase
         idx=(req).find('artist')
@@ -1166,10 +1142,10 @@ def gmusicselect(phrase):
         artist=artist.strip()
         print(artist)
         artiststr=('"'+artist+'"')
-        f = open('/home/pi/GassistPi/src/trackchange.py', 'a+')
+        f = open(os.path.expanduser('~/GassistPi/src/trackchange.py'), 'a+')
         f.write('play_artist('+artiststr+')')
         f.close()
-        say("Looking for songs rendered by the artist")
+        misc.say("Looking for songs rendered by the artist")
         play_artist(artist)
 
 
@@ -1205,15 +1181,16 @@ def youtubeplayer():
         tracks=""
         numtracks=0
 
-    startingvol=mpvvolmgr()
+    #startingvol=mpvvolmgr()
 
     if not tracks==[]:
         if currenttrackid<numtracks:
             audiostream,videostream=youtube_stream_link(tracks[currenttrackid])
             streamurl=audiostream
-            streamurl=("'"+streamurl+"'")
+            
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='on':
             currenttrackid=0
             nexttrackid=1
@@ -1223,13 +1200,14 @@ def youtubeplayer():
                 json.dump(playerinfo,output_file)
             audiostream,videostream=youtube_stream_link(tracks[currenttrackid])
             streamurl=audiostream
-            streamurl=("'"+streamurl+"'")
+            
             print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
             print("Error")
     else:
-        say("No matching results found")
+        misc.say("No matching results found")
 
 def YouTube_Autoplay(phrase):
     urllist=[]
@@ -1238,13 +1216,13 @@ def YouTube_Autoplay(phrase):
     track=track.replace("'}", "",1)
     track = track.replace('stream','',1)
     track=track.strip()
-    say("Getting autoplay links")
+    misc.say("Getting autoplay links")
     fullurl,urlid=youtube_search(track)
     autourls=fetchautoplaylist(fullurl,10)#Maximum of 10 URLS
     print(autourls)
     for i in range(0,len(autourls)):
         urllist.append(autourls[i])
-    say("Adding autoplay links to the playlist")
+    misc.say("Adding autoplay links to the playlist")
     with open(os.path.expanduser('~/youtubeurllist.json'), 'w') as output_file:
         json.dump(autourls, output_file)
     if os.path.isfile(os.path.expanduser("~/.youtubeplayer.json")):
@@ -1259,7 +1237,7 @@ def YouTube_No_Autoplay(phrase):
     track=track.replace("'}", "",1)
     track = track.replace('stream','',1)
     track=track.strip()
-    say("Getting youtube link")
+    misc.say("Getting youtube link")
     fullurl,urlid=youtube_search(track)
     urllist.append(fullurl)
     print(urllist)
@@ -1408,23 +1386,23 @@ def kickstarter_tracker(phrase):
         percentraised=round(float(percentraised),2)
         if int(totaltimerem)>0:
             #print(campaign_title+" is an ongoing campaign with "+str(totaltimerem)+" hours of fundraising still left." )
-            say(campaign_title+" is an ongoing campaign with "+str(totaltimerem)+" hours of fundraising still left." )
+            misc.say(campaign_title+" is an ongoing campaign with "+str(totaltimerem)+" hours of fundraising still left." )
             #print("Till now, "+str(backers)+ " backers have pledged for "+str(campaign_num_rewards)+" diferent rewards raising $"+str(totalpledged)+" , which is "+str(percentraised)+" times the requested amount of $"+str(goal))
-            say("Till now, "+str(backers)+ " backers have pledged for "+str(campaign_num_rewards)+" diferent rewards raising $"+str(totalpledged)+" , which is "+str(percentraised)+" times the requested amount of $"+str(goal))
+            misc.say("Till now, "+str(backers)+ " backers have pledged for "+str(campaign_num_rewards)+" diferent rewards raising $"+str(totalpledged)+" , which is "+str(percentraised)+" times the requested amount of $"+str(goal))
         if float(percentraised)<1 and int(totaltimerem)<=0:
             #print(campaign_title+" has already ended")
-            say(campaign_title+" has already ended")
+            misc.say(campaign_title+" has already ended")
             #print(str(backers)+ " backers raised $"+str(totalpledged)+" , which was "+str(percentraised)+" times the requested amount of $"+str(goal))
-            say(str(backers)+ " backers raised $"+str(totalpledged)+" , which was "+str(percentraised)+" times the requested amount of $"+str(goal))
+            misc.say(str(backers)+ " backers raised $"+str(totalpledged)+" , which was "+str(percentraised)+" times the requested amount of $"+str(goal))
             #print(campaign_title+" was unseccessful in raising the requested amount of $"+str(goal)+" ." )
-            say(campaign_title+" was unseccessful in raising the requested amount of $"+str(goal)+" ." )
+            misc.say(campaign_title+" was unseccessful in raising the requested amount of $"+str(goal)+" ." )
         if float(percentraised)>1 and int(totaltimerem)<=0:
             #print(campaign_title+" has already ended")
-            say(campaign_title+" has already ended")
+            misc.say(campaign_title+" has already ended")
             #print(str(backers)+ " backers raised $"+str(totalpledged)+" , which was "+str(percentraised)+" times the requested amount of $"+str(goal))
-            say(str(backers)+ " backers raised $"+str(totalpledged)+" , which was "+str(percentraised)+" times the requested amount of $"+str(goal))
+            misc.say(str(backers)+ " backers raised $"+str(totalpledged)+" , which was "+str(percentraised)+" times the requested amount of $"+str(goal))
             #print("Though the funding goal was reached, due to reasons undisclosed, the campaign was either cancelled by the creator or Kickstarter.")
-            say("Though the funding goal was reached, due to reasons undisclosed, the campaign was either cancelled by the creator or Kickstarter.")
+            misc.say("Though the funding goal was reached, due to reasons undisclosed, the campaign was either cancelled by the creator or Kickstarter.")
     else:
         [start_day,end_day,numdays]=get_funding_period(campaign_source)
         campaigninfo=campaign_source[(successidx-100):(successidx+35)]
@@ -1437,8 +1415,8 @@ def kickstarter_tracker(phrase):
         campaigninfo=campaigninfo.strip()
         #print(campaign_title+" was a "+str(numdays)+" campaign launched on "+str(start_day))
         #print(campaigninfo)
-        say(campaign_title+" was a "+str(numdays)+" campaign launched on "+str(start_day))
-        say(campaigninfo)
+        misc.say(campaign_title+" was a "+str(numdays)+" campaign launched on "+str(start_day))
+        misc.say(campaigninfo)
 
 #------------------------------End of Kickstarter Search functions---------------------------------------
 
@@ -1491,10 +1469,10 @@ def hue_control(phrase,lightindex,lightaddress):
     try:
         if 'on' in phrase:
             huereq=requests.head("http://"+lightaddress+"/set?light="+lightindex+"&on=true")
-            say("Turning on "+huelightname)
+            misc.say("Turning on "+huelightname)
         if 'off' in phrase:
             huereq=requests.head("http://"+lightaddress+"/set?light="+lightindex+"&on=false")
-            say("Turning off "+huelightname)
+            misc.say("Turning off "+huelightname)
         if 'çolor' in phrase:
             rcolour,gcolour,bcolour,hexcolour,colour=getcolours(phrase)
             print(str([rcolour,gcolour,bcolour,hexcolour,colour]))
@@ -1502,7 +1480,7 @@ def hue_control(phrase,lightindex,lightaddress):
             print(str([xval,yval]))
             huereq=requests.head("http://"+lightaddress+"/set?light="+lightindex+"&x="+str(xval)+"&y="+str(yval)+"&on=true")
             print("http://"+lightaddress+"/set?light="+lightindex+"&x="+str(xval)+"&y="+str(yval)+"&on=true")
-            say("Setting "+huelightname+" to "+colour)
+            misc.say("Setting "+huelightname+" to "+colour)
         if 'brightness'.lower() in phrase:
             if 'hundred'.lower() in str(usrcmd).lower() or 'maximum' in str(usrcmd).lower():
                 bright=100
@@ -1512,12 +1490,12 @@ def hue_control(phrase,lightindex,lightaddress):
                 bright=re.findall('\d+', phrase)
             brightval= (bright/100)*255
             huereq=requests.head("http://"+lightaddress+"/set?light="+lightindex+"&on=true&bri="+str(brightval))
-            say("Changing "+huelightname+" brightness to "+bright+" percent")            
+            misc.say("Changing "+huelightname+" brightness to "+bright+" percent")            
     except (requests.exceptions.ConnectionError,TypeError) as errors:
         if str(errors)=="'NoneType' object is not iterable":
             print("Type Error")
         else:
-            say("Device not online")
+            misc.say("Device not online")
 
 #------------------------------End of Hue Control Functions---------------------------------------------
 
@@ -1526,44 +1504,26 @@ def hue_control(phrase,lightindex,lightaddress):
 #GPIO Device Control
 def Action(phrase):
     if 'shut down' in phrase:
-        say('Shutting down Raspberry Pi')
+        misc.say('Shutting down Raspberry Pi')
         time.sleep(10)
         os.system("sudo shutdown -h now")
         #subprocess.call(["shutdown -h now"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if 'servo' in phrase:
-        for s in re.findall(r'\b\d+\b', phrase):
-            SetAngle(int(s))
-    if 'zero' in phrase:
-        SetAngle(0)
-    else:
-        for num, name in enumerate(var):
-            if name.lower() in phrase:
-                pinout=gpio[num]
-                if 'on' in phrase:
-                    GPIO.output(pinout, 1)
-                    say("Turning On " + name)
-                elif 'off' in phrase:
-                    GPIO.output(pinout, 0)
-                    say("Turning Off " + name)
-
-
-def play_audio_file(fname):
-    """Simple function to play a wave file.
-
-    :param str fname: wave file name
-    """
-
-    try:
-        if pygame.mixer.get_init() != None:
-            pygame.mixer.quit()
-        if pygame.mixer.music.get_busy():
-            pygame.mixer.music.stop()
-    except:
-        pass
-    pygame.mixer.init()
-    pygame.mixer.music.load(fname)
-    pygame.mixer.music.play()
-
+    if GPIO != None:
+        if 'servo' in phrase:
+            for s in re.findall(r'\b\d+\b', phrase):
+                SetAngle(int(s))
+        if 'zero' in phrase:
+            SetAngle(0)
+        else:
+            for num, name in enumerate(var):
+                if name.lower() in phrase:
+                    pinout=gpio[num]
+                    if 'on' in phrase:
+                        GPIO.output(pinout, 1)
+                        misc.say("Turning On " + name)
+                    elif 'off' in phrase:
+                        GPIO.output(pinout, 0)
+                        misc.say("Turning Off " + name)
 
 #Function to control Sonoff Tasmota Devices
 def tasmota_control(phrase, device):
@@ -1572,18 +1532,18 @@ def tasmota_control(phrase, device):
     if 'on' in phrase:
         try:
             rq = requests.head("http://{}/cm?cmnd={}%20on".format(device['ip'],device['id']))
-            say("{} turned off".format(device['friendly-name']))
+            misc.say("{} turned on".format(device['friendly-name']))
         except requests.exceptions.ConnectionError:
-            say("Device not online")
+            misc.say("Device not online")
     elif 'off' in phrase:
         try:
             rq = requests.head("http://{}/cm?cmnd={}%20off".format(device['ip'],device['id']))
-            say("{} turned off".format(device['friendly-name']))
+            misc.say("{} turned off".format(device['friendly-name']))
         except requests.exceptions.ConnectionError:
-            say("Device not online")
+            misc.say("Device not online")
     else:
         try:
             rq = requests.head("http://{}/cm?cmnd={}%20toggle".format(device['ip'],device['id']))
-            say("{} is toggled".format(device['friendly-name']))
+            misc.say("{} is toggled".format(device['friendly-name']))
         except requests.exceptions.ConnectionError:
-            say("Device not online")
+            misc.say("Device not online")
