@@ -9,8 +9,8 @@ tasmota_devicelist:
     ip: 192.168.88.234
 gmusicapi:
   #If you are using two-step authentication, use app specific password. For guidelines, go through README
-  email : mohammad.rasim96@gmail.com
-  password : upfsdqorvxrenulo
+  email : ENTER_YOUR_EMAIL_HERE
+  password : ENETER_YOUR_PASSWORD
 
 #API Key for YouTube and Kickstarter Search Engine
 google_cloud_api_key: ENTER-YOUR-GOOGLE-CLOUD-API-KEY-HERE
