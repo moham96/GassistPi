@@ -26,40 +26,40 @@ import urllib.request
 import pafy
 import pychromecast
 import utils
-#API Key for YouTube and KS Search Engine
-google_cloud_api_key='ENTER-YOUR-GOOGLE-CLOUD-API-KEY-HERE'
-# Sonoff-Tasmota Declarations
-tasmota_devicelist=[
-    {'friendly-name': 'test', 'ip': '192.168.88.233'}, #this is a device with only one relay so there is no need to assign id
-    {'friendly-name': 'tv box', 'id': 'POWER1','ip': '192.168.88.234'},#this is a device with multiple relays so each relay should have the same ip and an id (Power1,Power2 ...etc)
-    {'friendly-name': 'tv', 'id': 'POWER2','ip':'192.168.88.234'}
-    ]
+import yaml
+
+
+def load_settings():
+    with open('config.yaml','r') as fp:
+        settings = yaml.load(fp)
+    return settings
+
+settings = load_settings()
 
 #Google Music Declarations
 song_ids=[]
 track_ids=[]
 api = Mobileclient()
-#If you are using two-step authentication, use app specific password. For guidelines, go through README
-#logged_in = api.login('ENTER_YOUR_EMAIL_HERE', 'ENETER_YOUR_PASSWORD', Mobileclient.FROM_MAC_ADDRESS)
-logged_in = api.login('mohammad.rasim96@gmail.com', 'cjkfmqivxhdlarei', Mobileclient.FROM_MAC_ADDRESS)
+
+
+if settings['gmusicapi']['email'] != 'ENTER_YOUR_EMAIL_HERE' and settings['gmusicapi']['password'] != 'ENETER_YOUR_PASSWORD':    
+    api.login(settings['gmusicapi']['email'], settings['gmusicapi']['password'], Mobileclient.FROM_MAC_ADDRESS)
+
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
 
 misc=utils.misc()
+
 #YouTube API Constants
-DEVELOPER_KEY = google_cloud_api_key
 YOUTUBE_API_SERVICE_NAME = 'youtube'
 YOUTUBE_API_VERSION = 'v3'
 
-#Login with default kodi/kodi credentials
-#kodi = Kodi("http://localhost:8080/jsonrpc")
+if settings['kodi']:
+    if settings['kodi']['username'] and settings['kodi']['password']:
+        kodi = Kodi("http://{}:{}/jsonrpc".format(settings['kodi']['ip'],settings['kodi']['port']), settings['kodi']['username'], settings['kodi']['password'])
+    else:
+        kodi = Kodi("http://{}:{}/jsonrpc".format(settings['kodi']['ip'],settings['kodi']['port']))
 
-#Login with custom credentials
-# Kodi("http://IP-ADDRESS-OF-KODI:8080/jsonrpc", "username", "password")
-kodi = Kodi("http://192.168.1.15:8080/jsonrpc", "kodi", "kodi")
-musicdirectory="/home/osmc/Music/"
-videodirectory="/home/osmc/Movies/"
-windowcmd=["Home","Settings","Weather","Videos","Music","Player"]
-window=["home","settings","weather","videos","music","playercontrols"]
+
 
 if GPIO != None:
     GPIO.setmode(GPIO.BCM)
@@ -82,13 +82,6 @@ if GPIO != None:
     GPIO.setup(25, GPIO.OUT)
     led=GPIO.PWM(25,1)
     led.start(0)
-
-Radio_stations=[
-    {'name':'bbc 2','url':'http://www.radiofeeds.co.uk/bbcradio2.pls'},
-    {'name':'bbc 6 music','url':'http://www.radiofeeds.co.uk/bbc6music.pls'},
-    {'name':'Radio 3','url':'http://c5icy.prod.playlists.ihrhls.com/1469_icy'},
-    {'name':'Radio 4','url':'http://playerservices.streamtheworld.com/api/livestream-redirect/ARNCITY.mp3'}
-    ]
     
 #IP Address of ESP
 ip='xxxxxxxxxxxx'
@@ -136,7 +129,7 @@ quote = "http://feeds.feedburner.com/brainyquote/QUOTEBR"
 #Function for google KS custom search engine
 def kickstrater_search(query):
     service = build("customsearch", "v1",
-            developerKey=google_cloud_api_key)
+            developerKey=settings['google_cloud_api_key'])
     res = service.cse().list(
         q=query,
         cx = '012926744822728151901:gefufijnci4',
@@ -202,7 +195,7 @@ def convert_rgb_xy(red,green,blue):
 
 #Radio Station Streaming
 def radio(phrase):
-    for item in Radio_stations:
+    for item in settings['Radio_stations']:
         if item['name'].lower() in phrase:
             print("Tuning into " + item['name'])
             misc.say("Tuning into " + item['name'])
@@ -295,7 +288,7 @@ def feed(phrase):
 #Function to search YouTube and get videoid
 def youtube_search(query):
   youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-    developerKey=DEVELOPER_KEY)
+    developerKey=settings['google_cloud_api_key'])
 
   req=query
   # Call the search.list method to retrieve results matching the specified
@@ -393,7 +386,7 @@ def kodialbum(query):
     songs=kodi.AudioLibrary.GetSongs({ "limits": { "start" : 0, "end": 200 }, "properties": [ "artist", "duration", "album", "track" ], "sort": { "order": "ascending", "method": "track", "ignorearticle": True } })
     numsongs=len(songs["result"]["songs"])
     print(songs)
-    files=kodi.Files.GetDirectory({"directory": musicdirectory, "media": "music"})
+    files=kodi.Files.GetDirectory({"directory": settings['kodi']['musicdirectory'], "media": "music"})
     print(files)
     numfiles=len(files["result"]["files"])
     for a in range(0,numfiles):
@@ -469,7 +462,7 @@ def kodiartist(query):
     songs=kodi.AudioLibrary.GetSongs({ "limits": { "start" : 0, "end": 200 }, "properties": [ "artist", "duration", "album", "track" ], "sort": { "order": "ascending", "method": "track", "ignorearticle": True } })
     numsongs=len(songs["result"]["songs"])
     print(songs)
-    files=kodi.Files.GetDirectory({"directory": musicdirectory, "media": "music"})
+    files=kodi.Files.GetDirectory({"directory": settings['kodi']['musicdirectory'], "media": "music"})
     print(files)
     numfiles=len(files["result"]["files"])
     for a in range(0,numfiles):
@@ -530,7 +523,7 @@ def singleplaykodi(query):
         elif 'audio'.lower() in str(track).lower():
             track = track.replace('audio','',1)
         track=track.strip()
-        musicfiles=kodi.Files.GetDirectory({"directory": musicdirectory, "media": "music"})
+        musicfiles=kodi.Files.GetDirectory({"directory": settings['kodi']['musicdirectory'], "media": "music"})
         nummusicfiles=len(musicfiles["result"]["files"])
         print("Total number of files: "+ str(nummusicfiles))
         for a in range(0,nummusicfiles):
@@ -558,7 +551,7 @@ def singleplaykodi(query):
     elif 'movie'.lower() in str(track).lower() or 'video'.lower() in str(track).lower():
         track = track.replace('movie','',1)
         track=track.strip()
-        videofiles=kodi.Files.GetDirectory({"directory": videodirectory, "media": "video"})
+        videofiles=kodi.Files.GetDirectory({"directory": settings['kodi']['videodirectory'], "media": "video"})
         numvideofiles=len(videofiles["result"]["files"])
         print(videofiles)
         print("Total number of files: "+ str(numvideofiles))
@@ -624,7 +617,7 @@ def whatisplaying():
 def shufflekodi():
     directories=[]
     kodi.Playlist.Clear(playlistid=0)
-    files=kodi.Files.GetDirectory({"directory": musicdirectory, "media": "music"})
+    files=kodi.Files.GetDirectory({"directory": settings['kodi']['musicdirectory'], "media": "music"})
     numfiles=len(files["result"]["files"])
     for a in range(0,numfiles):
         if (files["result"]["files"][a]["filetype"])=="directory":
@@ -742,9 +735,9 @@ def kodiactions(phrase):
         vollevel=status[1]
         misc.say("Currently, Kodi's volume is set at: "+str(vollevel))
     elif 'go to'.lower() in str(phrase).lower() or 'open'.lower() in str(phrase).lower():
-        for num, name in enumerate(windowcmd):
+        for num, name in enumerate(settings['kodi']['windowcmd']):
             if name.lower() in str(phrase).lower():
-                activwindow=window[num]
+                activwindow=settings['kodi']['window'][num]
                 kodi.GUI.ActivateWindow({"window": activwindow})
     elif 'pause'.lower() in str(phrase).lower():
         players=kodi.Player.GetActivePlayers()
@@ -926,6 +919,7 @@ def play_playlist(playlistnum):
     if not tracks==[]:
         if currenttrackid<numtracks:
             streamurl=api.get_stream_url(tracks[currenttrackid])
+            
             print(streamurl)
             #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
             misc.vlc_play_item(streamurl)
@@ -937,6 +931,7 @@ def play_playlist(playlistnum):
             with open(os.path.expanduser('~/.gmusicplaylistplayer.json'), 'w') as output_file:
                 json.dump(playerinfo,output_file)
             streamurl=api.get_stream_url(tracks[currenttrackid])
+            
             print(streamurl)
             #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
             misc.vlc_play_item(streamurl)
@@ -975,6 +970,7 @@ def play_songs():
          #   os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
             misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='on':
+            print(2)
             currenttrackid=0
             nexttrackid=1
             loopstatus='on'
@@ -983,7 +979,6 @@ def play_songs():
                 json.dump(playerinfo,output_file)
             streamurl=api.get_stream_url(tracks[currenttrackid])
             print(streamurl)
-
             #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
             misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
@@ -1085,6 +1080,7 @@ def play_artist(artistname):
         misc.say("No matching results found")
 
 def gmusicselect(phrase):
+    print('gmusicselect')
     os.system('echo "from actions import play_playlist\nfrom actions import play_songs\nfrom actions import play_album\nfrom actions import play_artist\n\n" >> {}/src/trackchange.py'.format(ROOT_PATH))
     if 'all the songs'.lower() in phrase:
         print("Playing all your songs")

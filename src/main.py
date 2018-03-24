@@ -49,8 +49,7 @@ from actions import getrecipe
 from actions import hue_control
 from actions import misc
 from actions import tasmota_control
-from actions import tasmota_devicelist
-
+from actions import load_settings
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
 resources = {'fb': '{}/sample-audio-files/Fb.wav'.format(ROOT_PATH), 'startup': '{}/sample-audio-files/Startup.wav'.format(ROOT_PATH)}
 
@@ -68,6 +67,8 @@ INFO_FILE = os.path.expanduser('~/gassistant-credentials.info')
 kodi = Kodi("http://192.168.1.15:8080/jsonrpc", "kodi", "kodi")
 
 misc.setup_GPIO()
+
+settings = load_settings()
 
 
 #Magic Mirror Remote Control Declarations
@@ -207,7 +208,7 @@ def main():
                 except Keyerror:
                     misc.say('Unable to help, please check your config file')
 
-            for item in tasmota_devicelist:
+            for item in settings['tasmota_devicelist']:
                 if item['friendly-name'].lower()  in cmdtext:
                     assistant.stop_conversation()
                     tasmota_control(cmdtext, item)
