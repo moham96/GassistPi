@@ -31,6 +31,7 @@ class misc():
         self.libvlc_Media_list = self.libvlc_Instance.media_list_new()
         self.libvlc_list_player.set_media_player(self.libvlc_player)
         self.libvlc_list_player.set_media_list(self.libvlc_Media_list)
+        self.libvlc_player_event_manager= self.libvlc_player.event_manager()
         self.ttsfilename="/tmp/say.mp3"
         self.translator = Translator()
         self.language='en'

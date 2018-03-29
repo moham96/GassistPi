@@ -1,0 +1,17 @@
+[Unit]
+Description=Google Assistant
+After=network.target
+
+
+[Service]
+Environment=VIRTUAL_ENV=/home/__USER__/env
+Environment=PATH=/home/__USER__/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/home/__USER__/env/bin/python -u /home/__USER__/GassistPi/src/snowboy.py
+WorkingDirectory=/home/__USER__/
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target

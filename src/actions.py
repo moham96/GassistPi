@@ -30,6 +30,9 @@ import yaml
 
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
 
+
+ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
+
 def load_settings():
     with open('{}/src/config.yaml'.format(ROOT_PATH),'r') as fp:
         settings = yaml.load(fp)
@@ -878,7 +881,7 @@ def loadplaylist(playlistnum):
         playlistcontents=api.get_all_user_playlist_contents()
         with open(os.path.expanduser('~/playlist.json'), 'w') as output_file:
             json.dump(playlistcontents, output_file)
-##        print(playlistcontents[0]['tracks'])
+        print(playlistcontents[0])
 
     for k in range(0,len(playlistcontents[playlistnum]['tracks'])):
         track_ids.append(playlistcontents[playlistnum]['tracks'][k]['trackId'])
@@ -922,7 +925,7 @@ def play_playlist(playlistnum):
             streamurl=api.get_stream_url(tracks[currenttrackid])
             
             print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' "'+streamurl+'" &')
             misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='on':
             currenttrackid=0
@@ -934,7 +937,7 @@ def play_playlist(playlistnum):
             streamurl=api.get_stream_url(tracks[currenttrackid])
             
             print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' "'+streamurl+'" &')
             misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
             print("Error")
