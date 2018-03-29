@@ -28,9 +28,10 @@ import pychromecast
 import utils
 import yaml
 
+ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
 
 def load_settings():
-    with open('config.yaml','r') as fp:
+    with open('{}/src/config.yaml'.format(ROOT_PATH),'r') as fp:
         settings = yaml.load(fp)
     return settings
 
@@ -45,7 +46,7 @@ api = Mobileclient()
 if settings['gmusicapi']['email'] != 'ENTER_YOUR_EMAIL_HERE' and settings['gmusicapi']['password'] != 'ENETER_YOUR_PASSWORD':    
     api.login(settings['gmusicapi']['email'], settings['gmusicapi']['password'], Mobileclient.FROM_MAC_ADDRESS)
 
-ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
+
 
 misc=utils.misc()
 

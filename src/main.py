@@ -50,11 +50,14 @@ from actions import hue_control
 from actions import misc
 from actions import tasmota_control
 from actions import load_settings
+
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
+
 resources = {'fb': '{}/sample-audio-files/Fb.wav'.format(ROOT_PATH), 'startup': '{}/sample-audio-files/Startup.wav'.format(ROOT_PATH)}
 
 logging.basicConfig(filename='/tmp/GassistPi.log', level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
+
 logger=logging.getLogger(__name__)
 
 INFO_FILE = os.path.expanduser('~/gassistant-credentials.info')

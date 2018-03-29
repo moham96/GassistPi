@@ -37,7 +37,6 @@ import requests
 import pyxhook
 import pathlib2 as pathlib
 import imp
-from actions import say
 import google.auth.transport.grpc
 import google.auth.transport.requests
 import google.oauth2.credentials
@@ -45,7 +44,6 @@ from kodijson import Kodi, PLAYER_VIDEO
 from actions import Action
 from actions import YouTube_No_Autoplay
 from actions import YouTube_Autoplay
-from actions import stop
 from actions import radio
 from actions import ESP
 from actions import track
@@ -59,9 +57,9 @@ from actions import chromecast_control
 from actions import kickstarter_tracker
 from actions import getrecipe
 from actions import hue_control
-from actions import play_audio_file
+from actions import misc
 from actions import tasmota_control
-from actions import tasmota_devicelist
+from actions import load_settings
 
 from google.assistant.embedded.v1alpha2 import (
     embedded_assistant_pb2,
@@ -81,6 +79,7 @@ except SystemError:
     import device_helpers
 
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
+
 resources = {'fb':'{}/sample-audio-files/Fb.wav'.format(ROOT_PATH),'startup':'{}/sample-audio-files/Startup.wav'.format(ROOT_PATH)}
 
 logging.basicConfig(filename='/tmp/GassistPi.log', level=logging.DEBUG,
@@ -95,6 +94,9 @@ INFO_FILE = os.path.expanduser('~/gassistant-credentials.info')
 #Login with custom credentials
 # Kodi("http://IP-ADDRESS-OF-KODI:8080/jsonrpc", "username", "password")
 kodi = Kodi("http://192.168.1.15:8080/jsonrpc", "kodi", "kodi")
+
+settings = load_settings()
+
 if GPIO != None:
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -224,7 +226,7 @@ class SampleAssistant(object):
         """
         continue_conversation = False
         device_actions_futures = []
-        play_audio_file(resources['fb'])
+        misc.play_audio_file(resources['fb'])
         self.conversation_stream.start_recording()
         #Uncomment the following after starting the Kodi
         #status=mutevolstatus()
@@ -572,7 +574,7 @@ def main():
     lang='en-US'
     once=False
 
-    play_audio_file(resources['startup'])
+    misc.play_audio_file(resources['startup'])
     # Setup logging.
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
 
