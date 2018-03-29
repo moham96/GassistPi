@@ -29,8 +29,11 @@ import utils
 import yaml
 
 
+
+ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
+
 def load_settings():
-    with open('config.yaml','r') as fp:
+    with open('{}/src/config.yaml'.format(ROOT_PATH),'r') as fp:
         settings = yaml.load(fp)
     return settings
 
@@ -45,7 +48,7 @@ api = Mobileclient()
 if settings['gmusicapi']['email'] != 'ENTER_YOUR_EMAIL_HERE' and settings['gmusicapi']['password'] != 'ENETER_YOUR_PASSWORD':    
     api.login(settings['gmusicapi']['email'], settings['gmusicapi']['password'], Mobileclient.FROM_MAC_ADDRESS)
 
-ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
+
 
 misc=utils.misc()
 
@@ -877,7 +880,7 @@ def loadplaylist(playlistnum):
         playlistcontents=api.get_all_user_playlist_contents()
         with open(os.path.expanduser('~/playlist.json'), 'w') as output_file:
             json.dump(playlistcontents, output_file)
-##        print(playlistcontents[0]['tracks'])
+        print(playlistcontents[0])
 
     for k in range(0,len(playlistcontents[playlistnum]['tracks'])):
         track_ids.append(playlistcontents[playlistnum]['tracks'][k]['trackId'])
@@ -921,7 +924,7 @@ def play_playlist(playlistnum):
             streamurl=api.get_stream_url(tracks[currenttrackid])
             
             print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' "'+streamurl+'" &')
             misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='on':
             currenttrackid=0
@@ -933,7 +936,7 @@ def play_playlist(playlistnum):
             streamurl=api.get_stream_url(tracks[currenttrackid])
             
             print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
+            #os.system('mpv --really-quiet --volume='+str(startingvol)+' "'+streamurl+'" &')
             misc.vlc_play_item(streamurl)
         elif currenttrackid>=numtracks and loopstatus=='off':
             print("Error")

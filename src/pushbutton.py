@@ -37,7 +37,6 @@ import requests
 import pyxhook
 import pathlib2 as pathlib
 import imp
-from actions import say
 import google.auth.transport.grpc
 import google.auth.transport.requests
 import google.oauth2.credentials
@@ -45,7 +44,6 @@ from kodijson import Kodi, PLAYER_VIDEO
 from actions import Action
 from actions import YouTube_No_Autoplay
 from actions import YouTube_Autoplay
-from actions import stop
 from actions import radio
 from actions import ESP
 from actions import track
@@ -59,9 +57,9 @@ from actions import chromecast_control
 from actions import kickstarter_tracker
 from actions import getrecipe
 from actions import hue_control
-from actions import play_audio_file
 from actions import tasmota_control
-from actions import tasmota_devicelist
+from actions import misc
+from actions import load_settings
 
 from google.assistant.embedded.v1alpha2 import (
     embedded_assistant_pb2,
@@ -89,12 +87,14 @@ logger=logging.getLogger(__name__)
 
 INFO_FILE = os.path.expanduser('~/gassistant-credentials.info')
 
+settings = load_settings()
+
 #Login with default kodi/kodi credentials
 #kodi = Kodi("http://localhost:8080/jsonrpc")
 
 #Login with custom credentials
 # Kodi("http://IP-ADDRESS-OF-KODI:8080/jsonrpc", "username", "password")
-kodi = Kodi("http://192.168.1.15:8080/jsonrpc", "kodi", "kodi")
+kodi = Kodi("http://192.168.88.226:8080/jsonrpc", "kodi", "kodi")
 if GPIO != None:
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -224,7 +224,7 @@ class SampleAssistant(object):
         """
         continue_conversation = False
         device_actions_futures = []
-        play_audio_file(resources['fb'])
+        misc.play_audio_file(resources['fb'])
         self.conversation_stream.start_recording()
         #Uncomment the following after starting the Kodi
         #status=mutevolstatus()
@@ -248,19 +248,20 @@ class SampleAssistant(object):
 
         logging.info('Recording audio request.')
 
-        def iter_assist_requests():
+        def iter_log_assist_requests():
             for c in self.gen_assist_requests():
                 assistant_helpers.log_assist_request_without_audio(c)
                 yield c
-            self.conversation_stream.start_playback()
+            logging.debug('Reached end of AssistRequest iteration.')
 
         # This generator yields AssistResponse proto messages
         # received from the gRPC Google Assistant API.
-        for resp in self.assistant.Assist(iter_assist_requests(),
+        for resp in self.assistant.Assist(iter_log_assist_requests(),
                                           self.deadline):
             assistant_helpers.log_assist_response_without_audio(resp)
             if resp.event_type == END_OF_UTTERANCE:
-                logging.info('End of audio request detected')
+                logging.info('End of audio request detected.')
+                logging.info('Stopping recording.')
                 if GPIO != None:
                     GPIO.output(5,GPIO.LOW)
                     led.ChangeDutyCycle(0)
@@ -273,7 +274,6 @@ class SampleAssistant(object):
 
                 for r in resp.speech_results:
                     usercommand=str(r)
-
                 if "stability: 1.0" in usercommand.lower():
                     usrcmd=str(usercommand).lower()
                     idx=usrcmd.find('stability')
@@ -283,9 +283,10 @@ class SampleAssistant(object):
                     usrcmd=usrcmd.replace('transcript: "','',1)
                     usrcmd=usrcmd.replace('"','',1)
                     usrcmd=usrcmd.strip()
-                    for item in tasmota_devicelist:
-                        if item['friendly-name'] in str(usrcmd).lower():
-                            tasmota_control(str(usrcmd).lower(), item)
+                    cmdtext=usrcmd
+                    for item in settings['tasmota_devicelist']:
+                    	if item['friendly-name'].lower()  in cmdtext:
+                            tasmota_control(cmdtext, item)
                             return continue_conversation
                             break
                     with open('{}/src/diyHue/config.json'.format(ROOT_PATH), 'r') as config:
@@ -357,7 +358,7 @@ class SampleAssistant(object):
                                 YouTube_No_Autoplay(str(usrcmd).lower())
                         return continue_conversation
                     if 'stop'.lower() in str(usrcmd).lower():
-                        stop()
+                        misc.stop_vlc()
                         return continue_conversation
                     if 'radio'.lower() in str(usrcmd).lower():
                         radio(str(usrcmd).lower())
@@ -479,8 +480,11 @@ class SampleAssistant(object):
                     GPIO.output(5,GPIO.LOW)
                     GPIO.output(6,GPIO.HIGH)
                     led.ChangeDutyCycle(50)
-                logging.info('Playing assistant response.')
+            
             if len(resp.audio_out.audio_data) > 0:
+                if not self.conversation_stream.playing:
+                    self.conversation_stream.start_playback()
+                    logging.info('Playing assistant response.')
                 self.conversation_stream.write(resp.audio_out.audio_data)
             if resp.dialog_state_out.conversation_state:
                 conversation_state = resp.dialog_state_out.conversation_state
@@ -572,7 +576,7 @@ def main():
     lang='en-US'
     once=False
 
-    play_audio_file(resources['startup'])
+    misc.play_audio_file(resources['startup'])
     # Setup logging.
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
 
@@ -595,24 +599,22 @@ def main():
     logging.info('Connecting to %s', api_endpoint)
 
     # Configure audio source and sink.
-    audio_device = None
 
-    audio_source = audio_device = (
-        audio_device or audio_helpers.SoundDeviceStream(
+
+    audio_source = audio_helpers.SoundDeviceStream(
             sample_rate=audio_sample_rate,
             sample_width=audio_sample_width,
             block_size=audio_block_size,
             flush_size=audio_flush_size
-        )
+        
     )
 
-    audio_sink = audio_device = (
-        audio_device or audio_helpers.SoundDeviceStream(
+    audio_sink =  audio_helpers.SoundDeviceStream(
             sample_rate=audio_sample_rate,
             sample_width=audio_sample_width,
             block_size=audio_block_size,
             flush_size=audio_flush_size
-        )
+        
     )
     # Create conversation stream with the given audio source and sink.
     conversation_stream = audio_helpers.ConversationStream(
