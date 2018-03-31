@@ -60,7 +60,7 @@ class misc():
             if GPIO6 !=None:
                 GPIO.output(6, GPIO6)
             if duty != None:
-                led.ChangeDutyCycle(duty)
+                self.led.ChangeDutyCycle(duty)
 
     
     def play_audio_file(self,fname):
