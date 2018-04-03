@@ -77,6 +77,18 @@ misc.setup_GPIO()
 
 settings = load_settings()
 
+
+PRIVACY_ENABLED=True
+'''
+If PRIVACY_ENABLED is set to True then the assistant mic will be
+muted and the assistat will only listen to you when you trigger it by
+the custom wake word (snowboy)
+If PRIVACY_ENABLED is set to False then snowboy wakewords and the usual
+"hi google" and "ok google " hotwords will all work but this comes with
+violating your privacy by having google always listening to you
+
+'''
+
 #Add your custom models here
 models = ['{}/src/resources/models/smart_mirror.umdl'.format(ROOT_PATH), '{}/src/resources/models/snowboy.umdl'.format(ROOT_PATH)]
 
@@ -155,10 +167,12 @@ class Myassistant():
         Args:
             event(event.Event): The current event to process.
         """
+        print(event)
         if event.type == EventType.ON_START_FINISHED:
             self.can_start_conversation = True
+            if PRIVACY_ENABLED:
+                self.assistant.set_mic_mute(True)
             self.t1.start()
-        print(event)
         if event.type == EventType.ON_CONVERSATION_TURN_STARTED:
             self.can_start_conversation = False
             misc.pause_vlc()
@@ -174,6 +188,8 @@ class Myassistant():
 
         if event.type == EventType.ON_CONVERSATION_TURN_TIMEOUT:
             self.can_start_conversation = True
+            if PRIVACY_ENABLED:
+                self.assistant.set_mic_mute(True)
             misc.set_GPIO(GPIO5=0,GPIO6=0,duty=0)
             # Uncomment the following after starting the Kodi
             # with open('/home/pi/.volume.json', 'r') as f:
@@ -203,7 +219,6 @@ class Myassistant():
                    # vollevel = json.load(f)
                    # kodi.Application.SetVolume({"volume": vollevel})
             misc.play_vlc()
-            print()
 
         if event.type == EventType.ON_DEVICE_ACTION:
             for command, params in process_device_actions(event, device_id):
@@ -211,6 +226,7 @@ class Myassistant():
 
     def detected(self):
         if self.can_start_conversation == True:
+            self.assistant.set_mic_mute(False)
             self.assistant.start_conversation()
             print('assistant is listening')
         
