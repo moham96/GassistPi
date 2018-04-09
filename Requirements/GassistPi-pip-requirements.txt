@@ -16,3 +16,5 @@ pygame
 requests>=2.18.4
 pushbullet.py>=0.11.0
 Xlib
+vlc
+pyyaml
