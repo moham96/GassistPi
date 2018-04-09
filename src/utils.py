@@ -27,11 +27,11 @@ class misc():
     def __init__(self):
         self.libvlc_Instance=vlc.Instance('--verbose 0')
         self.libvlc_player = self.libvlc_Instance.media_player_new()
-        self.libvlc_list_player = self.libvlc_Instance.media_list_player_new()
-        self.libvlc_Media_list = self.libvlc_Instance.media_list_new()
-        self.libvlc_list_player.set_media_player(self.libvlc_player)
-        self.libvlc_list_player.set_media_list(self.libvlc_Media_list)
-        self.libvlc_player_event_manager= self.libvlc_player.event_manager()
+        # self.libvlc_list_player = self.libvlc_Instance.media_list_player_new()
+        # self.libvlc_Media_list = self.libvlc_Instance.media_list_new()
+        # self.libvlc_list_player.set_media_player(self.libvlc_player)
+        # self.libvlc_list_player.set_media_list(self.libvlc_Media_list)
+        # self.libvlc_player_event_manager= self.libvlc_player.event_manager()
         self.ttsfilename="/tmp/say.mp3"
         self.translator = Translator()
         self.language='en'
@@ -70,10 +70,17 @@ class misc():
         player.play()
 
 
-    def vlc_play_item(self,mrl):
+    def vlc_play_item(self,mrl,callback=None):
+        self.libvlc_player = self.libvlc_Instance.media_player_new()
+        if callback != None:
+            event_manager = self.libvlc_player.event_manager()
+            event_manager.event_attach(
+                vlc.EventType.MediaPlayerEndReached,callback)
         media=self.libvlc_Instance.media_new(mrl)
-        self.libvlc_Media_list.add_media(media)
-        self.libvlc_list_player.play_item(media)
+        self.libvlc_player.set_media(media)
+        self.libvlc_player.play()
+        #self.libvlc_Media_list.add_media(media)
+        #self.libvlc_list_player.play_item(media)
 
     def set_vlc_volume(self,level):
         self.libvlc_player.audio_set_volume(level)
@@ -93,11 +100,13 @@ class misc():
         self.libvlc_player.pause()
 
     def play_vlc(self):
-        print('playing/resuming vlc')
-        self.libvlc_player.play()
+        if self.libvlc_player.get_state()==vlc.State.Paused:
+            print('playing/resuming vlc')
+            self.libvlc_player.play()
 
     def is_vlc_playing(self):
         return self.libvlc_player.is_playing()
+
 
     #Text to speech converter with translation
     

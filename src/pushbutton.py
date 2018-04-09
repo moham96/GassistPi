@@ -50,8 +50,8 @@ from actions import track
 from actions import feed
 from actions import kodiactions
 from actions import mutevolstatus
-from actions import gmusicselect
-from actions import refreshlists
+from actions import gmusic
+#from actions import refreshlists
 from actions import chromecast_play_video
 from actions import chromecast_control
 from actions import kickstarter_tracker
@@ -89,6 +89,7 @@ logger=logging.getLogger(__name__)
 INFO_FILE = os.path.expanduser('~/gassistant-credentials.info')
 
 settings = load_settings()
+googleMusic=gmusic()
 
 #Login with default kodi/kodi credentials
 #kodi = Kodi("http://localhost:8080/jsonrpc")
@@ -462,17 +463,10 @@ class SampleAssistant(object):
                         return continue_conversation
 
                     if 'refresh'.lower() in str(usrcmd).lower() and 'music'.lower() in str(usrcmd).lower():
-                        refreshlists()
+                        googleMusic.refreshlists()
                         return continue_conversation
                     if 'google music'.lower() in str(usrcmd).lower():
-                        os.system('pkill mpv')
-                        if os.path.isfile("{}/src/trackchange.py".format(ROOT_PATH)):
-                            os.system('rm {}/src/trackchange.py'.format(ROOT_PATH))
-                           
-                            gmusicselect(str(usrcmd).lower())
-                        else:
-                          
-                            gmusicselect(str(usrcmd).lower())
+                        googleMusic.gmusicselect(str(usrcmd).lower())
                         return continue_conversation
 
                     else:

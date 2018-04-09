@@ -40,8 +40,7 @@ from actions import feed
 import requests
 from actions import kodiactions
 from actions import mutevolstatus
-from actions import gmusicselect
-from actions import refreshlists
+from actions import gmusic
 from actions import chromecast_play_video
 from actions import chromecast_control
 from actions import kickstarter_tracker
@@ -72,7 +71,7 @@ kodi = Kodi("http://192.168.1.15:8080/jsonrpc", "kodi", "kodi")
 misc.setup_GPIO()
 
 settings = load_settings()
-
+googleMusic=gmusic()
 
 #Magic Mirror Remote Control Declarations
 mmmip='ENTER_YOUR_MAGIC_MIRROR_IP'
@@ -370,14 +369,10 @@ def main():
 
             if 'refresh'.lower() in cmdtext and 'music'.lower() in cmdtext:
                 assistant.stop_conversation()
-                refreshlists()
+                googleMusic.refreshlists()
             if 'google music'.lower() in cmdtext:
                 assistant.stop_conversation()
-                if os.path.isfile("{}/src/trackchange.py".format(ROOT_PATH)):
-                    os.system('rm {}/src/trackchange.py'.format(ROOT_PATH))
-                    gmusicselect(cmdtext)
-                else:
-                    gmusicselect(cmdtext)
+                googleMusic.gmusicselect(cmdtext)
 
 if __name__ == '__main__':
     try:
