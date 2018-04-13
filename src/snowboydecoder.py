@@ -173,7 +173,11 @@ class HotwordDetector(object):
         logger.debug("detecting...")
 
         state = "PASSIVE"
+        listening_counter=0
         while self._running is True:
+            if listening_counter==0:
+                listening_counter=1
+                print('Snowboy: Listening for hotword .....')
             if interrupt_check():
                 logger.debug("detect voice break")
                 break

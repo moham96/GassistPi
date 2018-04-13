@@ -12,6 +12,7 @@ import google.auth.transport.requests
 import google.oauth2.credentials
 import json
 from actions import load_settings
+from actions import misc
 
 from google.assistant.embedded.v1alpha2 import (
     embedded_assistant_pb2,
@@ -31,10 +32,11 @@ except SystemError:
     import device_helpers
 
 from pushbutton import SampleAssistant
-#import pushbutton
 #subprocess.Popen(["aplay", "/home/pi/GassistPi/sample-audio-files/customwakeword.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
-# Demo code for listening two hotwords at the same time
+resources = {'fb':'{}/sample-audio-files/Fb.wav'.format(ROOT_PATH),'startup':'{}/sample-audio-files/Startup.wav'.format(ROOT_PATH)}
+
+misc.play_audio_file(resources['startup'])
 # GPIO.setmode(GPIO.BCM)
 # GPIO.setwarnings(False)
 # interrupted = False
@@ -195,7 +197,6 @@ def main():
   sensitivity = [0.5]*len(models)
   callbacks = [detected]*len(models)
   detector = snowboydecoder.HotwordDetector(models, sensitivity=sensitivity)
-  print('Listening... Press Ctrl+C to exit')
 
   # main loop
   # make sure you have the same numbers of callbacks and models
