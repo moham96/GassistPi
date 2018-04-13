@@ -597,27 +597,24 @@ def main():
     grpc_channel = google.auth.transport.grpc.secure_authorized_channel(
         credentials, http_request, api_endpoint)
     logging.info('Connecting to %s', api_endpoint)
-
     # Configure audio source and sink.
-
-
-    audio_source = audio_helpers.SoundDeviceStream(
+    audio_device = None
+    audio_source = audio_device = (
+        audio_device or  audio_helpers.SoundDeviceStream(
             sample_rate=audio_sample_rate,
             sample_width=audio_sample_width,
             block_size=audio_block_size,
-            flush_size=audio_flush_size,
-            direction=0
-        
-    )
-
-    audio_sink =  audio_helpers.SoundDeviceStream(
+            flush_size=audio_flush_size
+            )
+  )
+    audio_sink = audio_device = (
+        audio_device or audio_helpers.SoundDeviceStream(
             sample_rate=audio_sample_rate,
             sample_width=audio_sample_width,
             block_size=audio_block_size,
-            flush_size=audio_flush_size,
-            direction=1
-        
-    )
+            flush_size=audio_flush_size
+            )
+        )
     # Create conversation stream with the given audio source and sink.
     conversation_stream = audio_helpers.ConversationStream(
         source=audio_source,
