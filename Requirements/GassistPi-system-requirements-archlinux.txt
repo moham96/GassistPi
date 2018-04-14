@@ -9,3 +9,4 @@ libffi
 openssl
 python3
 socat
+sblas

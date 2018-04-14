@@ -11,6 +11,7 @@ import google.auth.transport.grpc
 import google.auth.transport.requests
 import google.oauth2.credentials
 import json
+import uuid
 from actions import load_settings
 from actions import misc
 

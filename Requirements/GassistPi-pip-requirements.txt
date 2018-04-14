@@ -12,9 +12,8 @@ pafy>=0.5.3.1
 psutil>=5.4.3
 urllib3>=1.22
 google-api-python-client>=1.6.5
-pygame
 requests>=2.18.4
 pushbullet.py>=0.11.0
-Xlib
-vlc
-pyyaml
+Xlib==0.21
+python-vlc==3.0.102
+pyyaml==3.12
