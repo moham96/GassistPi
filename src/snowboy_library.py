@@ -186,7 +186,8 @@ class Myassistant():
             #kodi.Application.SetVolume({"volume": 0})
             misc.set_GPIO(GPIO5=1,GPIO6=None,duty=100)
 
-        if event.type == EventType.ON_CONVERSATION_TURN_TIMEOUT:
+        if event.type == EventType.ON_CONVERSATION_TURN_TIMEOUT
+        or event.type == EventType.ON_NO_RESPONSE:
             self.can_start_conversation = True
             if PRIVACY_ENABLED:
                 self.assistant.set_mic_mute(True)

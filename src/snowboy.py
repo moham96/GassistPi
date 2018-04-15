@@ -1,7 +1,12 @@
 import snowboydecoder
 import sys
 import signal
-#import RPi.GPIO as GPIO
+try:
+    import RPi.GPIO as GPIO
+except Exception as e:
+    if str(e) == 'No module named \'RPi\'':
+        GPIO = None
+import pathlib2 as pathlib
 import time
 import imp
 import logging
