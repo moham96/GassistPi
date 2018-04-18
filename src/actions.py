@@ -27,7 +27,11 @@ import pafy
 import pychromecast
 import utils
 import yaml
-
+import code
+from threading import Thread
+import rlcompleter, readline
+readline.parse_and_bind('tab:complete')
+codet=Thread(target=lambda: code.interact(local=dict(globals(), **locals())))
 
 
 ROOT_PATH = os.path.realpath(os.path.join(__file__, '..', '..'))
@@ -42,6 +46,7 @@ settings = load_settings()
 #Google Music Declarations
 song_ids=[]
 track_ids=[]
+playerinfo=None
 api = Mobileclient()
 
 
@@ -817,335 +822,157 @@ def fetchautoplaylist(url,numvideos):
 
 
 ##-------Start of functions defined for Google Music-------------------
-
-def loadsonglist():
-    song_ids=[]
-    if os.path.isfile(os.path.expanduser("~/songs.json")):
-        with open(os.path.expanduser('~/songs.json'),'r') as input_file:
-            songs_list= json.load(input_file)
-##            print(songs_list)
-    else:
-        songs_list= api.get_all_songs()
-        with open(os.path.expanduser('~/songs.json'), 'w') as output_file:
-            json.dump(songs_list, output_file)
-    for i in range(0,len(songs_list)):
-        song_ids.append(songs_list[i]['id'])
-    songsnum=len(songs_list)
-    return song_ids, songsnum
-
-def loadartist(artistname):
-    song_ids=[]
-    artist=str(artistname)
-    if os.path.isfile(os.path.expanduser("~/songs.json")):
-        with open(os.path.expanduser('~/songs.json'),'r') as input_file:
-            songs_list= json.load(input_file)
-##            print(songs_list)
-    else:
-        songs_list= api.get_all_songs()
-        with open(os.path.expanduser('~/songs.json'), 'w') as output_file:
-            json.dump(songs_list, output_file)
-    for i in range(0,len(songs_list)):
-        if artist.lower() in (songs_list[i]['albumArtist']).lower():
-            song_ids.append(songs_list[i]['id'])
+class gmusic():
+    def __init__(self,phrase=None):
+        self.currenttrack=None
+        self.tracks=[]
+        self.playerinfo={}
+    def loadsonglist(self):
+        song_ids=[]
+        if os.path.isfile(os.path.expanduser("~/songs.json")):
+            with open(os.path.expanduser('~/songs.json'),'r') as input_file:
+                songs_list= json.load(input_file)
+    ##            print(songs_list)
         else:
-            print("Artist not found")
-    songsnum=len(song_ids)
-    return song_ids, songsnum
+            songs_list= api.get_all_songs()
+            with open(os.path.expanduser('~/songs.json'), 'w') as output_file:
+                json.dump(songs_list, output_file)
+        for i in range(0,len(songs_list)):
+            song_ids.append(songs_list[i]['id'])
+        songsnum=len(songs_list)
+        return song_ids, songsnum
 
-def loadalbum(albumname):
-    song_ids=[]
-    album=str(albumname)
-    if os.path.isfile(os.path.expanduser("~/songs.json")):
-        with open(os.path.expanduser('~/songs.json'),'r') as input_file:
-            songs_list= json.load(input_file)
-##            print(songs_list)
-    else:
-        songs_list= api.get_all_songs()
+    def loadartist(self,artistname):
+        song_ids=[]
+        artist=str(artistname)
+        if os.path.isfile(os.path.expanduser("~/songs.json")):
+            with open(os.path.expanduser('~/songs.json'),'r') as input_file:
+                songs_list= json.load(input_file)
+    ##            print(songs_list)
+        else:
+            songs_list= api.get_all_songs()
+            with open(os.path.expanduser('~/songs.json'), 'w') as output_file:
+                json.dump(songs_list, output_file)
+        for i in range(0,len(songs_list)):
+            if artist.lower() in (songs_list[i]['albumArtist']).lower():
+                song_ids.append(songs_list[i]['id'])
+            else:
+                print("Artist not found")
+        songsnum=len(song_ids)
+        return song_ids, songsnum
+
+    def loadalbum(self,albumname):
+        song_ids=[]
+        album=str(albumname)
+        if os.path.isfile(os.path.expanduser("~/songs.json")):
+            with open(os.path.expanduser('~/songs.json'),'r') as input_file:
+                songs_list= json.load(input_file)
+    ##            print(songs_list)
+        else:
+            songs_list= api.get_all_songs()
+            with open(os.path.expanduser('~/songs.json'), 'w') as output_file:
+                json.dump(songs_list, output_file)
+        for i in range(0,len(songs_list)):
+            if album.lower() in (songs_list[i]['album']).lower():
+                song_ids.append(songs_list[i]['id'])
+            else:
+                print("Album not found")
+        songsnum=len(song_ids)
+        return song_ids, songsnum
+
+    def loadplaylist(self,playlistnum):
+        track_ids=[]
+        if os.path.isfile(os.path.expanduser("~/playlist.json")):
+            with open(os.path.expanduser('~/playlist.json'),'r') as input_file:
+                playlistcontents= json.load(input_file)
+        else:
+            playlistcontents=api.get_all_user_playlist_contents()
+            with open(os.path.expanduser('~/playlist.json'), 'w') as output_file:
+                json.dump(playlistcontents, output_file)
+            print(playlistcontents[0])
+
+        for k in range(0,len(playlistcontents[playlistnum]['tracks'])):
+            track_ids.append(playlistcontents[playlistnum]['tracks'][k]['trackId'])
+    ##        print(track_ids)
+        tracksnum=len(playlistcontents[playlistnum]['tracks'])
+        return track_ids, tracksnum
+
+    def refreshlists(self):
+        playlist_list=api.get_all_user_playlist_contents()
+        songs_list=api.get_all_songs()
         with open(os.path.expanduser('~/songs.json'), 'w') as output_file:
             json.dump(songs_list, output_file)
-    for i in range(0,len(songs_list)):
-        if album.lower() in (songs_list[i]['album']).lower():
-            song_ids.append(songs_list[i]['id'])
-        else:
-            print("Album not found")
-    songsnum=len(song_ids)
-    return song_ids, songsnum
-
-def loadplaylist(playlistnum):
-    track_ids=[]
-    if os.path.isfile(os.path.expanduser("~/playlist.json")):
-        with open(os.path.expanduser('~/playlist.json'),'r') as input_file:
-            playlistcontents= json.load(input_file)
-    else:
-        playlistcontents=api.get_all_user_playlist_contents()
         with open(os.path.expanduser('~/playlist.json'), 'w') as output_file:
-            json.dump(playlistcontents, output_file)
-        print(playlistcontents[0])
+            json.dump(playlist_list, output_file)
+        misc.say("Music list synchronised")
 
-    for k in range(0,len(playlistcontents[playlistnum]['tracks'])):
-        track_ids.append(playlistcontents[playlistnum]['tracks'][k]['trackId'])
-##        print(track_ids)
-    tracksnum=len(playlistcontents[playlistnum]['tracks'])
-    return track_ids, tracksnum
-
-def refreshlists():
-    playlist_list=api.get_all_user_playlist_contents()
-    songs_list=api.get_all_songs()
-    with open(os.path.expanduser('~/songs.json'), 'w') as output_file:
-        json.dump(songs_list, output_file)
-    with open(os.path.expanduser('~/playlist.json'), 'w') as output_file:
-        json.dump(playlist_list, output_file)
-    misc.say("Music list synchronised")
-
-def play_playlist(playlistnum):
-
-    if os.path.isfile(os.path.expanduser("~/.gmusicplaylistplayer.json")):
-        with open(os.path.expanduser('~/.gmusicplaylistplayer.json'),'r') as input_file:
-            playerinfo= json.load(input_file)
-        currenttrackid=playerinfo[0]
-        loopstatus=playerinfo[1]
-        nexttrackid=currenttrackid+1
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicplaylistplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
-    else:
-        currenttrackid=0
-        nexttrackid=1
-        loopstatus='on'
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicplaylistplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
-
-    tracks,numtracks=loadplaylist(playlistnum)
-    #startingvol=mpvvolmgr()
-
-    if not tracks==[]:
-        if currenttrackid<numtracks:
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            
-            print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' "'+streamurl+'" &')
-            misc.vlc_play_item(streamurl)
-        elif currenttrackid>=numtracks and loopstatus=='on':
-            currenttrackid=0
-            nexttrackid=1
-            loopstatus='on'
-            playerinfo=[nexttrackid,loopstatus]
-            with open(os.path.expanduser('~/.gmusicplaylistplayer.json'), 'w') as output_file:
-                json.dump(playerinfo,output_file)
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            
-            print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' "'+streamurl+'" &')
-            misc.vlc_play_item(streamurl)
-        elif currenttrackid>=numtracks and loopstatus=='off':
+    def play_tracks(self,event=None):
+        if self.playerinfo['currenttrackid']<self.numtracks:
+            print('playing next song with id '+str(self.playerinfo['currenttrackid']))
+            streamurl=api.get_stream_url(self.tracks[self.playerinfo['currenttrackid']])
+            self.playerinfo['currenttrackid'] +=1
+            misc.vlc_play_item(streamurl,self.play_tracks)
+        elif self.playerinfo['currenttrackid']>=self.numtracks and self.playerinfo['loopstatus']=='on':
+            self.playerinfo['currenttrackid']=0
+            self.playerinfo['loopstatus']='on'
+            self.playerinfo['currenttrackid'] +=1
+            self.play_tracks()
+        elif self.playerinfo['currenttrackid']>=self.numtracks and self.playerinfo['loopstatus']=='off':
             print("Error")
-    else:
-        misc.say("No matching results found")
 
+    def gmusicselect(self,phrase):
+        print('gmusicselect function')
+        self.playerinfo['currenttrackid']=0
+        self.playerinfo['loopstatus']='on'
+        if 'all the songs' in phrase or 'all songs' in phrase:
+            print("Playing all your songs")
+            misc.say("Playing all your songs")
+            self.tracks,self.numtracks=self.loadsonglist()
+        if 'playlist'.lower() in phrase:
+            if 'first'.lower() in phrase or 'one'.lower() in phrase  or '1'.lower() in phrase:
+                misc.say("Playing songs from your playlist")
+                self.tracks,self.numtracks=self.loadplaylist(0)
 
-def play_songs():
+        if 'album'.lower() in phrase:
+            req=phrase
+            idx=(req).find('album')
+            album=req[idx:]
+            album=album.replace("'}", "",1)
+            album = album.replace('album','',1)
+            if 'from'.lower() in req:
+                album = album.replace('from','',1)
+                album = album.replace('google music','',1)
+            else:
+                album = album.replace('google music','',1)
 
-    if os.path.isfile(os.path.expanduser("~/.gmusicsongsplayer.json")):
-        with open(os.path.expanduser('~/.gmusicsongsplayer.json'),'r') as input_file:
-            playerinfo= json.load(input_file)
-        currenttrackid=playerinfo[0]
-        loopstatus=playerinfo[1]
-        nexttrackid=currenttrackid+1
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicsongsplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
-    else:
-        currenttrackid=0
-        nexttrackid=1
-        loopstatus='on'
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicsongsplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
+            album=album.strip()
+            print(album)
+            albumstr=('"'+album+'"')
+            misc.say("Looking for songs from the album")
+            self.tracks,self.numtracks=self.loadalbum(album)
 
-    tracks,numtracks=loadsonglist()
-    #startingvol=mpvvolmgr()
+        if 'artist'.lower() in phrase:
+            req=phrase
+            idx=(req).find('artist')
+            artist=req[idx:]
+            artist=artist.replace("'}", "",1)
+            artist = artist.replace('artist','',1)
+            if 'from'.lower() in req:
+                artist = artist.replace('from','',1)
+                artist = artist.replace('google music','',1)
+            else:
+                artist = artist.replace('google music','',1)
 
-    if not tracks==[]:
-        if currenttrackid<numtracks:
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            print(streamurl)
-         #   os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
-            misc.vlc_play_item(streamurl)
-        elif currenttrackid>=numtracks and loopstatus=='on':
-            print(2)
-            currenttrackid=0
-            nexttrackid=1
-            loopstatus='on'
-            playerinfo=[nexttrackid,loopstatus]
-            with open(os.path.expanduser('~/.gmusicsongsplayer.json'), 'w') as output_file:
-                json.dump(playerinfo,output_file)
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
-            misc.vlc_play_item(streamurl)
-        elif currenttrackid>=numtracks and loopstatus=='off':
-            print("Error")
-    else:
-        misc.say("No matching results found")
+            artist=artist.strip()
+            print(artist)
+            artiststr=('"'+artist+'"')
+            misc.say("Looking for songs rendered by the artist")
+            self.tracks,self.numtracks=self.loadartist(artist)
 
-
-def play_album(albumname):
-    if os.path.isfile(os.path.expanduser("~/.gmusicalbumplayer.json")):
-        with open(os.path.expanduser('~/.gmusicalbumplayer.json'),'r') as input_file:
-            playerinfo= json.load(input_file)
-        currenttrackid=playerinfo[0]
-        loopstatus=playerinfo[1]
-        nexttrackid=currenttrackid+1
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicalbumplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
-    else:
-        currenttrackid=0
-        nexttrackid=1
-        loopstatus='on'
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicalbumplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
-
-    tracks,numtracks=loadalbum(albumname)
-    #startingvol=mpvvolmgr()
-
-    if not tracks==[]:
-        if currenttrackid<numtracks:
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            
-            print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
-            misc.vlc_play_item(streamurl)
-        elif currenttrackid>=numtracks and loopstatus=='on':
-            currenttrackid=0
-            nexttrackid=1
-            loopstatus='on'
-            playerinfo=[nexttrackid,loopstatus]
-            with open(os.path.expanduser('~/.gmusicalbumplayer.json'), 'w') as output_file:
-                json.dump(playerinfo,output_file)
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            
-            print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
-            misc.vlc_play_item(streamurl)
-        elif currenttrackid>=numtracks and loopstatus=='off':
-            print("Error")
-    else:
-        misc.say("No matching results found")
-
-
-
-def play_artist(artistname):
-    if os.path.isfile(os.path.expanduser("~/.gmusicartistplayer.json")):
-        with open(os.path.expanduser('~/.gmusicartistplayer.json'),'r') as input_file:
-            playerinfo= json.load(input_file)
-        currenttrackid=playerinfo[0]
-        loopstatus=playerinfo[1]
-        nexttrackid=currenttrackid+1
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicartistplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
-    else:
-        currenttrackid=0
-        nexttrackid=1
-        loopstatus='on'
-        playerinfo=[nexttrackid,loopstatus]
-        with open(os.path.expanduser('~/.gmusicartistplayer.json'), 'w') as output_file:
-            json.dump(playerinfo, output_file)
-
-    tracks,numtracks=loadartist(artistname)
-    #startingvol=mpvvolmgr()
-
-
-    if not tracks==[]:
-        if currenttrackid<numtracks:
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            
-            print(streamurl)
-            os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
-        elif currenttrackid>=numtracks and loopstatus=='on':
-            currenttrackid=0
-            nexttrackid=1
-            loopstatus='on'
-            playerinfo=[nexttrackid,loopstatus]
-            with open(os.path.expanduser('~/.gmusicartistplayer.json'), 'w') as output_file:
-                json.dump(playerinfo,output_file)
-            streamurl=api.get_stream_url(tracks[currenttrackid])
-            
-            print(streamurl)
-            #os.system('mpv --really-quiet --volume='+str(startingvol)+' '+streamurl+' &')
-            misc.vlc_play_item(streamurl)
-        elif currenttrackid>=numtracks and loopstatus=='off':
-            print("Error")
-    else:
-        misc.say("No matching results found")
-
-def gmusicselect(phrase):
-    print('gmusicselect')
-    os.system('echo "from actions import play_playlist\nfrom actions import play_songs\nfrom actions import play_album\nfrom actions import play_artist\n\n" >> {}/src/trackchange.py'.format(ROOT_PATH))
-    if 'all the songs'.lower() in phrase:
-        print("Playing all your songs")
-        os.system('echo "play_songs()\n" >> {}/src/trackchange.py'.format(ROOT_PATH))
-        misc.say("Playing all your songs")
-        play_songs()
-
-    if 'playlist'.lower() in phrase:
-        if 'first'.lower() in phrase or 'one'.lower() in phrase  or '1'.lower() in phrase:
-            os.system('echo "play_playlist(0)\n" >> {}/src/trackchange.py'.format(ROOT_PATH))
-            misc.say("Playing songs from your playlist")
-            play_playlist(0)
+        if not self.tracks==[]:
+            self.play_tracks()
         else:
-            misc.say("Sorry I am unable to help")
-
-    if 'album'.lower() in phrase:
-        if os.path.isfile(os.path.expanduser("~/.gmusicalbumplayer.json")):
-            os.system("rm {}".format(os.path.expanduser("~/.gmusicalbumplayer.json")))
-
-        req=phrase
-        idx=(req).find('album')
-        album=req[idx:]
-        album=album.replace("'}", "",1)
-        album = album.replace('album','',1)
-        if 'from'.lower() in req:
-            album = album.replace('from','',1)
-            album = album.replace('google music','',1)
-        else:
-            album = album.replace('google music','',1)
-
-        album=album.strip()
-        print(album)
-        albumstr=('"'+album+'"')
-        f = open(os.path.expanduser('~/GassistPi/src/trackchange.py'), 'a+')
-        f.write('play_album('+albumstr+')')
-        f.close()
-        misc.say("Looking for songs from the album")
-        play_album(album)
-
-    if 'artist'.lower() in phrase:
-        if os.path.isfile(os.path.expanduser("~/.gmusicartistplayer.json")):
-            os.system("rm {}".format("~/.gmusicartistplayer.json"))
-
-        req=phrase
-        idx=(req).find('artist')
-        artist=req[idx:]
-        artist=artist.replace("'}", "",1)
-        artist = artist.replace('artist','',1)
-        if 'from'.lower() in req:
-            artist = artist.replace('from','',1)
-            artist = artist.replace('google music','',1)
-        else:
-            artist = artist.replace('google music','',1)
-
-        artist=artist.strip()
-        print(artist)
-        artiststr=('"'+artist+'"')
-        f = open(os.path.expanduser('~/GassistPi/src/trackchange.py'), 'a+')
-        f.write('play_artist('+artiststr+')')
-        f.close()
-        misc.say("Looking for songs rendered by the artist")
-        play_artist(artist)
+            misc.say("No matching results found")
 
 
 #----------End of functions defined for Google Music---------------------------
