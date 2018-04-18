@@ -187,6 +187,7 @@ def main():
     with Assistant(credentials, args.device_model_id) as assistant:
         misc.play_audio_file(resources['startup'])
         events = assistant.start()
+        assistant.set_mic_mute(False)
         print('device_model_id:', args.device_model_id + '\n' +
               'device_id:', assistant.device_id + '\n')
         if args.project_id:
